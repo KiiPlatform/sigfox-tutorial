@@ -78,8 +78,8 @@ function receive(params, context, done){
   });
 }
 
-// handlingError endpoint retrieve error event of last hour with SIGFOX API
-function handlingError(params, context, done) {
+// handleError endpoint retrieve error event of last hour with SIGFOX API
+function handleError(params, context, done) {
 
   // link of this API: https://backend-demo.sigfox.com/apidocs/user/57272598e0102e36337b1b10
   var sigfoxTargetUrl =
