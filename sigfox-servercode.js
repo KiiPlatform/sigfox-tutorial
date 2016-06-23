@@ -78,7 +78,7 @@ function handleError(params, context, done) {
 
     // SIGFOX API to retrieve error events
     var sigfoxTargetUrl =
-        "https://backend-demo.sigfox.com/api/callbacks/messages/error";
+        "https://backend.sigfox.com/api/callbacks/messages/error";
 
     // please modified with your id and password. These authentication credentials are associated to a group
     var sigfoxId = "******";
