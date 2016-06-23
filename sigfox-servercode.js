@@ -11,71 +11,61 @@ function receive(params, context, done){
     erorHandler("Invalid secret token. secret:" + params.secret);
   }
 
-//2. Construct thing-if APIs base url
-  var baseURL = Kii.getBaseURL();
-  var rootURL = baseURL.substring(0, baseURL.length-3);
-  var thingIfBaseURL = rootURL + "thing-if/apps/";
-  var thingIFURL = function(path) {
-    return thingIfBaseURL + "/" + context.getAppID() + path;
-  }
-
-  // Need admin token to access thing-if APIs
-  var token = context.getAppAdminContext()._getToken();
-
-//3. ONBOARD Thing first
   // vendorThingID of thing is id of sigFox device ID
   var vendorThingID = params.id;
   if (vendorThingID == null || vendorThingID == undefined) {
     erorHandler("no id provided");
   }
-  var onboardURL = thingIFURL("/onboardings");
-  $.ajax({
-    url: onboardURL,
-    type: "POST",
-    headers: {
-      "Authorization": "Bearer " + token,
-      "Content-Type": "application/vnd.kii.OnboardingWithVendorThingIDByThing+json"
+
+//2. Use Kii Cloud SDK to load thing with vendorThingID
+  context.getAppAdminContext().loadThingWithVendorThingID(vendorThingID,{
+    success: function(thing){
+//3. After succeeded to load thing, request to update thing state through thing-if API
+      // Construct thing-if APIs base url
+      var baseURL = Kii.getBaseURL();
+      var rootURL = baseURL.substring(0, baseURL.length-3);
+      var thingIfBaseURL = rootURL + "thing-if/apps/";
+      var thingIFURL = function(path) {
+        return thingIfBaseURL + "/" + context.getAppID() + path;
+      }
+
+      // Need admin token to access thing-if APIs
+      var token = context.getAppAdminContext()._getToken();
+
+      var registerThingStateURL = thingIFURL("/targets/THING:"+ thing.getThingID() + "/states")
+
+      // construct thing state,
+      var states = {};
+      // please modify the logic here depending on the params of your callbacks
+      states.time = params.time;
+      states.data = params.data;
+      states.duplicate = params.duplicate;
+      states.snr = params.snr;
+      states.station = params.station;
+      states.avgSnr = params.avgSnr;
+      states.lat = params.lat;
+      states.lng = params.lng;
+      states.rssi = params.rssi;
+      states.seqNumber = params.seqNumber;
+      states.updatedAt = new Date();
+
+      $.ajax({
+        url: registerThingStateURL,
+        type: "PUT",
+        headers: {
+          "Authorization": "Bearer " + token,
+          "Content-Type": "application/json"
+        },
+        data: JSON.stringify(states)
+      }).done(function (body) {
+        done({"Success":body});
+      }).fail(function(msg) {
+          erorHandler(msg);
+      });
     },
-    data: JSON.stringify({
-      "vendorThingID": vendorThingID,
-      "thingPassword": "pass", // please modify it with appropriate value
-      "thingType": "sigFox" // please modify it with appropriate value
-    })
-  }).then(function (body) {
-
-//4. After ONBOARD succeeded, Register thing state, constructed by params of SigFox callbacks
-    var thingID = body.thingID;
-    var registerThingStateURL = thingIFURL("/targets/THING:"+ thingID + "/states")
-
-    // construct thing state,
-    var states = {};
-    // please modify the logic here depending on the params of your callbacks
-    states.time = params.time;
-    states.data = params.data;
-    states.duplicate = params.duplicate;
-    states.snr = params.snr;
-    states.station = params.station;
-    states.avgSnr = params.avgSnr;
-    states.lat = params.lat;
-    states.lng = params.lng;
-    states.rssi = params.rssi;
-    states.seqNumber = params.seqNumber;
-    states.updatedAt = new Date();
-
-    return $.ajax({
-      url: registerThingStateURL,
-      type: "PUT",
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Content-Type": "application/json"
-      },
-      data: JSON.stringify(states)
-    })
-  }).done(function (body) {
-    done({"Success":body});
-  }).fail(function(msg) {
-    erorHandler(msg);
-  });
+    failure: function(err){
+      erorHandler(err)
+    }});
 }
 
 // handleError endpoint retrieve error event of last hour with SIGFOX API
