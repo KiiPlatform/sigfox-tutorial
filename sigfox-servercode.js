@@ -5,7 +5,7 @@ function receive(params, context, done) {
         throw JSON.stringify({
             "error": err
         });
-    }
+    };
 
     //1. Verify secret token.
     var secretToken = "this.is.secret.token";
@@ -22,53 +22,28 @@ function receive(params, context, done) {
     //2. Use Kii Cloud SDK to load thing with vendorThingID
     context.getAppAdminContext().loadThingWithVendorThingID(vendorThingID, {
         success: function(thing) {
-            //3. After succeeded to load thing, request to update thing state through thing-if API
-            // Construct thing-if APIs base url
-            var baseURL = Kii.getBaseURL();
-            var rootURL = baseURL.substring(0, baseURL.length - 3);
-            var thingIfBaseURL = rootURL + "thing-if/apps/";
-            var thingIFURL = function(path) {
-                return thingIfBaseURL + "/" + context.getAppID() + path;
+            //3. After succeeded to load thing, create an object in a bucket
+            var bucket = thing.bucketWithName("data");
+            var object = bucket.createObject();
+            // store fields other than secret and id
+            for (var key in params) {
+                if (key == "secret" || key == "id") {
+                    continue;
+                }
+                object.set(key, params[key]);
             }
 
-            // Need admin token to access thing-if APIs
-            var token = context.getAppAdminContext()._getToken();
-
-            var registerThingStateURL = thingIFURL("/targets/THING:" + thing.getThingID() + "/states")
-
-            // construct thing state,
-            var states = {};
-            // please modify the logic here depending on the params of your callbacks
-            states.time = params.time;
-            states.data = params.data;
-            states.duplicate = params.duplicate;
-            states.snr = params.snr;
-            states.station = params.station;
-            states.avgSnr = params.avgSnr;
-            states.lat = params.lat;
-            states.lng = params.lng;
-            states.rssi = params.rssi;
-            states.seqNumber = params.seqNumber;
-            states.updatedAt = new Date();
-
-            $.ajax({
-                url: registerThingStateURL,
-                type: "PUT",
-                headers: {
-                    "Authorization": "Bearer " + token,
-                    "Content-Type": "application/json"
+            object.save({
+                success: function(theObj) {
+                    done({"Success": theObj});
                 },
-                data: JSON.stringify(states)
-            }).done(function(body) {
-                done({
-                    "Success": body
-                });
-            }).fail(function(msg) {
-                erorHandler(msg);
+                failure: function(theObj, msg) {
+                    erorHandler(msg);
+                }
             });
         },
         failure: function(err) {
-            erorHandler(err)
+            erorHandler(err);
         }
     });
 }
